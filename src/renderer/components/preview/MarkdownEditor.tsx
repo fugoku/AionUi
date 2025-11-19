@@ -4,15 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
-import CodeMirror from '@uiw/react-codemirror';
-import { markdown } from '@codemirror/lang-markdown';
 import { useThemeContext } from '@/renderer/context/ThemeContext';
+import { markdown } from '@codemirror/lang-markdown';
+import CodeMirror from '@uiw/react-codemirror';
+import React from 'react';
 
 interface MarkdownEditorProps {
   value: string; // 编辑器内容 / Editor content
   onChange: (value: string) => void; // 内容变化回调 / Content change callback
   readOnly?: boolean; // 是否只读 / Whether read-only
+  containerRef?: React.RefObject<HTMLDivElement>; // 容器引用，用于滚动同步 / Container ref for scroll sync
+  onScroll?: (scrollTop: number, scrollHeight: number, clientHeight: number) => void; // 滚动回调 / Scroll callback
 }
 
 /**
@@ -22,11 +24,24 @@ interface MarkdownEditorProps {
  * 基于 CodeMirror 实现，支持语法高亮和实时编辑
  * Based on CodeMirror, supports syntax highlighting and live editing
  */
-const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange, readOnly = false }) => {
+const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange, readOnly = false, containerRef, onScroll }) => {
   const { theme } = useThemeContext();
 
+  // 监听容器滚动事件 / Listen to container scroll events
+  React.useEffect(() => {
+    const container = containerRef?.current;
+    if (!container || !onScroll) return;
+
+    const handleScroll = () => {
+      onScroll(container.scrollTop, container.scrollHeight, container.clientHeight);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [containerRef, onScroll]);
+
   return (
-    <div className='h-full w-full overflow-auto'>
+    <div ref={containerRef} className='h-full w-full overflow-auto'>
       <CodeMirror
         value={value}
         height='100%'
