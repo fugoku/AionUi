@@ -13,14 +13,13 @@ import classNames from 'classnames';
 import ReactDOM from 'react-dom';
 import { iconColors } from '@/renderer/theme/colors';
 import { useThemeContext } from '@/renderer/context/ThemeContext';
-import { usePreviewContext } from '@/renderer/context/PreviewContext';
+import { usePreviewContext, getContentTypeByExtension, getFileExtension } from '@/renderer/pages/conversation/preview';
 import { useConversationContextSafe } from '@/renderer/context/ConversationContext';
 import { parseFilePathFromDiff } from '@/renderer/utils/diffUtils';
 import { ipcBridge } from '@/common';
 import CollapsibleContent from './CollapsibleContent';
 import { useTranslation } from 'react-i18next';
 import { joinPath } from '@/common/chatLib';
-import { getContentTypeByExtension, getFileExtension } from '@/renderer/utils/fileUtils';
 
 const Diff2Html = ({ diff, className, title }: { diff: string; className?: string; title?: string }) => {
   const { theme } = useThemeContext();
