@@ -21,24 +21,26 @@ test.describe('Channels', () => {
   async function goToChannelsTab(page: import('@playwright/test').Page): Promise<void> {
     await goToSettings(page, 'webui');
 
-    // The WebUI page has a Tabs component with 'webui' and 'channels' tabs.
-    // Click the channels tab.
-    const tabHeaders = page.locator(ARCO_TABS_HEADER_TITLE);
-    const count = await tabHeaders.count();
+    // Wait for and click the channels tab using text-based matching
+    // This is more robust than counting tabs which may not all be rendered yet
+    const channelTab = page.locator(ARCO_TABS_HEADER_TITLE).filter({
+      hasText: /channel|频道|渠道/i,
+    }).first();
 
-    for (let i = 0; i < count; i++) {
-      const text = await tabHeaders.nth(i).textContent();
-      if (
-        text?.toLowerCase().includes('channel') ||
-        text?.includes('频道') ||
-        text?.includes('渠道')
-      ) {
-        await tabHeaders.nth(i).click();
-        await page.waitForTimeout(500);
-        return;
-      }
+    try {
+      await channelTab.waitFor({ state: 'visible', timeout: 15_000 });
+      await channelTab.click();
+      // Wait for channel content to render
+      await page.waitForFunction(
+        () => {
+          const t = document.body.textContent || '';
+          return t.includes('Telegram') || t.includes('Lark') || t.includes('DingTalk') || t.includes('Channel') || t.includes('频道');
+        },
+        { timeout: 10_000 },
+      );
+    } catch {
+      // Best-effort: if channels tab not found, page may show channels directly
     }
-    // If no explicit channels tab found, the page may already show channels
   }
 
   // ── Channel list ─────────────────────────────────────────────────────────
@@ -94,7 +96,15 @@ test.describe('Channels', () => {
       // Read initial state
       const wasBefore = isDisabled?.includes('arco-switch-checked');
       await sw.click();
-      await page.waitForTimeout(1000);
+
+      // Wait for class to change (state transition) instead of fixed sleep
+      await sw.evaluate((el) =>
+        new Promise<void>((resolve) => {
+          const observer = new MutationObserver(() => { observer.disconnect(); resolve(); });
+          observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+          setTimeout(() => { observer.disconnect(); resolve(); }, 1500);
+        }),
+      );
 
       const classAfter = await sw.getAttribute('class');
       const isAfter = classAfter?.includes('arco-switch-checked');
@@ -107,7 +117,13 @@ test.describe('Channels', () => {
       // Toggle back to restore state
       if (wasBefore !== isAfter) {
         await sw.click();
-        await page.waitForTimeout(500);
+        await sw.evaluate((el) =>
+          new Promise<void>((resolve) => {
+            const observer = new MutationObserver(() => { observer.disconnect(); resolve(); });
+            observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+            setTimeout(() => { observer.disconnect(); resolve(); }, 1000);
+          }),
+        );
       }
       break;
     }
@@ -138,6 +154,7 @@ test.describe('Channels', () => {
 
 
   test('screenshot: channels settings', async ({ page }) => {
+    test.skip(!process.env.E2E_SCREENSHOTS, 'screenshots disabled');
     await goToChannelsTab(page);
     await takeScreenshot(page, 'channels-settings');
   });
